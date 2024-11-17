@@ -1,25 +1,25 @@
+use crate::{FilterTable, LogTable, View};
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
-    // Example stuff:
-    label: String,
-
+pub struct TextAnalysisTool {
     #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+    log_table: LogTable,
+    #[serde(skip)] // This how you opt-out of serialization of a field
+    filter_table: FilterTable,
 }
 
-impl Default for TemplateApp {
+impl Default for TextAnalysisTool {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            log_table: Default::default(),
+            filter_table: Default::default(),
         }
     }
 }
 
-impl TemplateApp {
+impl TextAnalysisTool {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -35,7 +35,7 @@ impl TemplateApp {
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for TextAnalysisTool {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
@@ -62,34 +62,41 @@ impl eframe::App for TemplateApp {
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
+                // ui.allocate_ui_with_layout(
+                //     egui::Vec2::new(ui.available_width(), ui.available_height()),
+                //     egui::Layout::right_to_left(egui::Align::Center),
+                //     |ui| {
+                //         egui::widgets::global_theme_preference_switch(ui);
+                //     });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            ui.ctx().options_mut(|opt| opt.warn_on_id_clash = false);
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
+            let available_height = ui.available_height();
 
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
+            ui.allocate_ui_with_layout(
+                egui::Vec2::new(ui.available_width(), available_height * (2.0 / 3.0)),
+                egui::Layout::top_down(egui::Align::Center),
+                |ui| {
+                    self.log_table.ui(ui);
+                },
+            );
 
-            ui.separator();
+            ui.add_space(10.0); // Optional: Add some spacing between the sections
 
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
+            ui.allocate_ui_with_layout(
+                egui::Vec2::new(ui.available_width(), available_height * (1.0 / 3.0)),
+                egui::Layout::top_down(egui::Align::Center),
+                |ui| {
+                    self.filter_table.ui(ui);
+                },
+            );
+        });
 
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            powered_by_egui_and_eframe(ui);
         });
     }
 }
@@ -107,3 +114,10 @@ fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
         ui.label(".");
     });
 }
+
+pub fn lines_text() -> Vec<&'static str> {
+    TEXT.lines().collect()
+}
+
+// create random text const
+const TEXT: &str = include_str!("../assets/text.txt");
